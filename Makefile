@@ -1,29 +1,31 @@
-default: run
+default: build
+
+build: target/kernel.bin
 
 .PHONY: clean
 
-clean:
-	rm -rf build
+cargo:
+	xargo build --release --target x86_64-unknown-winterOS-gnu
 
-build: os.iso
+target/multiboot_header.o: src/asm/multiboot_header.asm
+		mkdir -p target
+		nasm -f elf64 src/asm/multiboot_header.asm -o target/multiboot_header.o
 
-run: build/os.iso
-	qemu-system-x86_64 -cdrom build/os.iso
+target/boot.o: src/asm/boot.asm
+		mkdir -p target
+		nasm -f elf64 src/asm/boot.asm -o target/boot.o
 
-build/os.iso: build/kernel.bin grub.cfg
-	mkdir -p build/isofiles/boot/grub
-	cp grub.cfg build/isofiles/boot/grub
-	cp build/kernel.bin build/isofiles/boot/
-	/Users/rushi/opt/bin/grub-mkrescue -o build/os.iso build/isofiles
+target/kernel.bin: target/multiboot_header.o target/boot.o src/asm/linker.ld cargo
+		/Users/rushi/opt/bin/x86_64-pc-elf-ld -n -o target/kernel.bin -T src/asm/linker.ld target/multiboot_header.o target/boot.o target/x86_64-unknown-winterOS-gnu/release/libwinterOS.a
 
-build/multiboot_header.o: multiboot_header.asm
-	mkdir -p build
-	nasm -f elf64 multiboot_header.asm -o build/multiboot_header.o
+target/os.iso: target/kernel.bin src/asm/grub.cfg
+		mkdir -p target/isofiles/boot/grub
+		cp src/asm/grub.cfg target/isofiles/boot/grub
+		cp target/kernel.bin target/isofiles/boot/
+		/Users/rushi/opt/bin/grub-mkrescue -o target/os.iso target/isofiles
 
-build/boot.o: boot.asm
-	mkdir -p build
-	nasm -f elf64 boot.asm -o build/boot.o
+run: target/os.iso
+		qemu-system-x86_64 -cdrom target/os.iso
 
-build/kernel.bin: build/multiboot_header.o build/boot.o linker.ld
-	/Users/rushi/opt/bin/x86_64-pc-elf-ld -n -o build/kernel.bin -T linker.ld build/multiboot_header.o build/boot.o
-
+clean: 
+		cargo clean

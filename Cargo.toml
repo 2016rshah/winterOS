@@ -1,0 +1,9 @@
+[package]
+name = "winterOS"
+version = "0.1.0"
+authors = ["Rushi Shah <2016rshah@gmail.com>"]
+
+[lib]
+crate-type = ["staticlib"]
+
+[dependencies]
